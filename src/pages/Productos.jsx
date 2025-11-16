@@ -1,195 +1,283 @@
 import { useEffect, useState } from "react";
-import { Box, Button, Modal, TextField, Typography } from "@mui/material";
+import {
+  Box,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Typography,
+  IconButton,
+  Snackbar,
+  Alert,
+} from "@mui/material";
+
 import { DataGrid } from "@mui/x-data-grid";
-import { getProductosPorEmpresa, crearProducto, deleteProducto } from "../services/productosApi";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import AddIcon from "@mui/icons-material/Add";
+
+import {
+  getProductos,
+  crearProducto,
+  deleteProducto,
+  editarProducto,
+} from "../services/productosApi";
+
 import { useAuth } from "../context/AuthContext";
-import Swal from "sweetalert2";
-import { ROLES } from '../js/const';
-import { alertError } from '../js/utils/alerts';
+import { ROLES } from "../js/const";
+import { alertConfirm } from "../js/utils/alerts";
 
 export default function Productos() {
   const [productos, setProductos] = useState([]);
-  const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
+    id: null,
     codigo: "",
     nombre: "",
     caracteristicas: "",
-    precios: { COP: 0, USD: 0, EUR: 0 },
     empresaNIT: "",
+    precios: { COP: 0, USD: 0, EUR: 0 }
   });
+
+  const [open, setOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [snack, setSnack] = useState({ open: false, msg: "", type: "success" });
 
   const { user } = useAuth();
   const isAdmin = user?.role === ROLES.ADMIN;
 
   useEffect(() => {
-    if (user?.empresaNIT) loadProductos(user.empresaNIT);
-  }, [user]);
+    cargarProductos();
+  }, []);
 
-  const loadProductos = async (nit) => {
+  const cargarProductos = async () => {
     try {
-      const data = await getProductosPorEmpresa(nit);
-      setProductos(data);
-    } catch (e) {
-      console.error("Error cargando productos:", e);
+      const data = await getProductos();
+      const rows = data.map((p) => ({
+        id: p.id ?? crypto.randomUUID(),
+        ...p,
+      }));
+      setProductos(rows);
+    } catch (err) {
+      setSnack({ open: true, msg: "Error cargando productos", type: "error" });
     }
   };
 
-  const handleDelete = async (id) => {
-    const confirm = await Swal.fire({
-      title: "Eliminar producto",
-      text: "¿Seguro que deseas eliminar este producto?",
-      icon: "warning",
-      showCancelButton: true,
-      confirmButtonText: "Sí, eliminar",
-      cancelButtonText: "Cancelar",
+  const abrirCrear = () => {
+    setForm({
+      id: null,
+      codigo: "",
+      nombre: "",
+      caracteristicas: "",
+      empresaNIT: "",
+      precios: { COP: 0, USD: 0, EUR: 0 },
     });
+    setIsEditing(false);
+    setOpen(true);
+  };
 
-    if (!confirm.isConfirmed) return;
+  const abrirEditar = (row) => {
+    setIsEditing(true);
+    setForm({
+      id: row.id,
+      codigo: row.codigo,
+      nombre: row.nombre,
+      caracteristicas: row.caracteristicas,
+      empresaNIT: row.empresaNIT,
+      precios: {
+        COP: row.precios.COP,
+        USD: row.precios.USD,
+        EUR: row.precios.EUR
+      }
+    });
+    setOpen(true);
+  };
+
+  const crearEditarProducto = async () => {
+    try {
+      const payload = {
+        codigo: form.codigo,
+        nombre: form.nombre,
+        caracteristicas: form.caracteristicas,
+        empresaNIT: form.empresaNIT,
+        precios: {
+          COP: Number(form.precios.COP),
+          USD: Number(form.precios.USD),
+          EUR: Number(form.precios.EUR),
+        },
+      };
+
+      if (isEditing) {
+        await editarProducto(form.id, payload);
+        setSnack({ open: true, msg: "Producto actualizado", type: "success" });
+      } else {
+        await crearProducto(payload);
+        setSnack({ open: true, msg: "Producto creado", type: "success" });
+      }
+
+      setOpen(false);
+      cargarProductos();
+    } catch (err) {
+      setSnack({ open: true, msg: err.message, type: "error" });
+    }
+  };
+
+  const cerrarModal = () => {
+    setOpen(false);
+  };
+
+  const eliminarProducto = async (id) => {
+    const confirmado = await alertConfirm("¿Seguro que deseas eliminar este producto?");
+    if (!confirmado) return;
 
     try {
       await deleteProducto(id);
-      loadProductos(form.empresaNIT);
-    } catch (e) {
-      Swal.fire("Error", "No se pudo eliminar el producto", "error");
-    }
-  };
-
-  const handleCreate = async () => {
-    try {
-      await crearProducto({
-        ...form,
-        precios: {
-          COP: parseFloat(form.precios.COP),
-          USD: parseFloat(form.precios.USD),
-          EUR: parseFloat(form.precios.EUR),
-        },
-      });
-
-      Swal.fire("Éxito", "Producto creado", "success");
-      setOpen(false);
-      loadProductos(form.empresaNIT);
-    } catch (e) {
-      setOpen(false);
-      console.log(e);
-      
-      alertError(e.message)
+      setSnack({ open: true, msg: "Producto eliminado", type: "success" });
+      cargarProductos();
+    } catch (err) {
+      setSnack({ open: true, msg: "Error eliminando producto", type: "error" });
     }
   };
 
   const columns = [
     { field: "codigo", headerName: "Código", flex: 1 },
-    { field: "nombre", headerName: "Nombre", flex: 1 },
+    { field: "nombre", headerName: "Nombre", flex: 1.5 },
     { field: "caracteristicas", headerName: "Características", flex: 2 },
     {
       field: "precios",
       headerName: "Precios",
       flex: 2,
-      renderCell: ({ row }) =>
-        `COP: ${row.precios.COP} | USD: ${row.precios.USD} | EUR: ${row.precios.EUR}`,
+      renderCell: (params) => {
+        const px = params.row.precios;
+        return `COP: ${px?.COP} | USD: ${px?.USD} | EUR: ${px?.EUR}`;
+      },
     },
-    isAdmin && {
-      field: "acciones",
-      headerName: "Acciones",
+    {
+      field: "empresaNIT",
+      headerName: "Empresa (NIT)",
       flex: 1,
-      renderCell: ({ row }) => (
-        <>
-          <Button variant="outlined" color="warning" size="small">Editar</Button>
-          <Button
-            variant="outlined"
-            color="error"
-            size="small"
-            sx={{ ml: 1 }}
-            onClick={() => handleDelete(row.id)}
-          >
-            Eliminar
-          </Button>
-        </>
-      ),
     },
-  ].filter(Boolean);
+
+    isAdmin
+      ? {
+          field: "acciones",
+          headerName: "Acciones",
+          sortable: false,
+          filterable: false,
+          width: 140,
+          renderCell: (params) => (
+            <>
+              <IconButton color="warning" onClick={() => abrirEditar(params.row)}>
+                <EditIcon />
+              </IconButton>
+
+              <IconButton color="error" onClick={() => eliminarProducto(params.row.id)}>
+                <DeleteIcon />
+              </IconButton>
+            </>
+          ),
+        }
+      : {},
+  ];
 
   return (
-    <Box p={3}>
-      <Typography variant="h4" gutterBottom>Productos</Typography>
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h4" fontWeight={700} mb={3}>
+        Listado de Productos
+      </Typography>
 
       {isAdmin && (
-        <Button variant="contained" onClick={() => setOpen(true)}>
-          ➕ Crear Producto
+        <Button variant="contained" startIcon={<AddIcon />} sx={{ mb: 2 }} onClick={abrirCrear}>
+          Crear Producto
         </Button>
       )}
 
-      <Box mt={3} style={{ height: 500 }}>
-        <DataGrid rows={productos} columns={columns} pageSize={10} />
-      </Box>
+      <DataGrid
+        rows={productos}
+        columns={columns}
+        getRowId={(row) => row.id}
+        pageSizeOptions={[5, 10, 20]}
+        initialState={{
+          pagination: { paginationModel: { pageSize: 5, page: 0 } },
+        }}
+        sx={{ background: "white", boxShadow: 3, borderRadius: 2 }}
+      />
 
-      <Modal open={open} onClose={() => setOpen(false)}>
-        <Box sx={{
-          p: 4,
-          backgroundColor: "white",
-          width: 400,
-          margin: "100px auto",
-          borderRadius: 2,
-        }}>
-          <Typography variant="h6" gutterBottom>Crear Producto</Typography>
+      <Dialog open={open} onClose={cerrarModal}>
+        <DialogTitle>{isEditing ? "Editar Producto" : "Crear Producto"}</DialogTitle>
+
+        <DialogContent sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
 
           <TextField
             label="Código"
-            fullWidth
-            margin="normal"
+            value={form.codigo}
             onChange={(e) => setForm({ ...form, codigo: e.target.value })}
           />
+
           <TextField
             label="Nombre"
-            fullWidth
-            margin="normal"
+            value={form.nombre}
             onChange={(e) => setForm({ ...form, nombre: e.target.value })}
           />
+
           <TextField
             label="Características"
-            fullWidth
-            margin="normal"
+            value={form.caracteristicas}
             onChange={(e) => setForm({ ...form, caracteristicas: e.target.value })}
           />
 
-          <Typography variant="subtitle1" sx={{ mt: 2 }}>Precios:</Typography>
+          <Typography fontWeight={600}>Precios</Typography>
+
           <TextField
             label="COP"
-            fullWidth
-            margin="normal"
             type="number"
+            value={form.precios.COP}
             onChange={(e) =>
               setForm({ ...form, precios: { ...form.precios, COP: e.target.value } })
             }
           />
+
           <TextField
             label="USD"
-            fullWidth
-            margin="normal"
             type="number"
+            value={form.precios.USD}
             onChange={(e) =>
               setForm({ ...form, precios: { ...form.precios, USD: e.target.value } })
             }
           />
+
           <TextField
             label="EUR"
-            fullWidth
-            margin="normal"
             type="number"
+            value={form.precios.EUR}
             onChange={(e) =>
               setForm({ ...form, precios: { ...form.precios, EUR: e.target.value } })
             }
           />
 
-          <Button
-            variant="contained"
-            fullWidth
-            sx={{ mt: 2 }}
-            onClick={handleCreate}
-          >
-            Guardar
+          <TextField
+            label="Empresa (NIT)"
+            value={form.empresaNIT}
+            onChange={(e) => setForm({ ...form, empresaNIT: e.target.value })}
+          />
+        </DialogContent>
+
+        <DialogActions>
+          <Button onClick={cerrarModal}>Cancelar</Button>
+          <Button variant="contained" onClick={crearEditarProducto}>
+            {isEditing ? "Guardar cambios" : "Crear"}
           </Button>
-        </Box>
-      </Modal>
+        </DialogActions>
+      </Dialog>
+
+      <Snackbar
+        open={snack.open}
+        autoHideDuration={3000}
+        onClose={() => setSnack({ ...snack, open: false })}
+      >
+        <Alert severity={snack.type}>{snack.msg}</Alert>
+      </Snackbar>
     </Box>
   );
 }

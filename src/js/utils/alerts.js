@@ -18,6 +18,7 @@ export const alertError = (message) => {
     text: message,
     background: "#ffffff",
     confirmButtonColor: "#d32f2f",
+    zIndex: 50000
   });
 };
 
