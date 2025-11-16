@@ -1,27 +1,46 @@
-import { createContext, useState } from 'react'
+import { createContext, useContext, useState } from "react";
+import { jwtDecode } from "jwt-decode";
+import { useNavigate } from "react-router-dom";
+import { loginApi as loginRequest } from "../services/api";
 
-export const AuthContext = createContext()
+const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
-  const [auth, setAuth] = useState({
-    token: null,
-    role: null
-  })
+  const navigate = useNavigate();
 
-  const login = (token, role) => {
-    setAuth({ token, role })
-    localStorage.setItem('token', token)
-    localStorage.setItem('role', role)
-  }
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem("user");
+    return saved ? JSON.parse(saved) : null;
+  });
+
+  // Login
+  const login = async (email, password) => {
+    const data = await loginRequest(email, password);    
+    const decoded = jwtDecode(data.token);
+
+    const userData = {
+      token: data.token,
+      role: data.role,
+      email: decoded.sub
+    };
+
+    setUser(userData);
+    localStorage.setItem("user", JSON.stringify(userData));
+    localStorage.setItem("token", userData.token);
+    navigate("/empresas");
+  };
 
   const logout = () => {
-    setAuth({ token: null, role: null })
-    localStorage.clear()
-  }
+    setUser(null);
+    localStorage.removeItem("user");
+    navigate("/");
+  };
 
   return (
-    <AuthContext.Provider value={{ auth, login, logout }}>
+    <AuthContext.Provider value={{ user, login, logout }}>
       {children}
     </AuthContext.Provider>
-  )
+  );
 }
+
+export const useAuth = () => useContext(AuthContext);
