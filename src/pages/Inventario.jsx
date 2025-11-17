@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 
-import { getEmpresas } from "../services/api";
+import { getEmpresas } from "../services/empresasApi";
 import {
   getInventarioPorEmpresa,
   descargarPDF,
@@ -36,6 +36,10 @@ export default function Inventario() {
     cargarEmpresas();
   }, []);
 
+  /**
+   * Carga las empresas desde la API.
+   * Si ocurre un error muestra alerta.
+   */
   const cargarEmpresas = async () => {
     try {
       const data = await getEmpresas();
@@ -45,10 +49,14 @@ export default function Inventario() {
     }
   };
 
+  /**
+   * Carga el inventario de una empresa específica.
+   * @param {string} nit - NIT seleccionado del dropdown
+   */
   const cargarInventario = async (nit) => {
     setNitSeleccionado(nit);
 
-    // 👉 Si selecciona "" entonces limpiar tabla y salir
+    // Si no se selecciona empresa, limpiar tabla
     if (!nit) {
       setInventario([]);
       return;
@@ -62,6 +70,9 @@ export default function Inventario() {
     }
   };
 
+  /**
+   * Genera un PDF del inventario y lo descarga.
+   */
   const handlePDF = async () => {
     try {
       const blob = await descargarPDF(nitSeleccionado);
@@ -78,6 +89,9 @@ export default function Inventario() {
     }
   };
 
+  /**
+   * Envía el PDF de inventario por correo.
+   */
   const enviarEmail = async () => {
     try {
       if (!emailDestino || emailDestino.trim() === "") {
@@ -85,10 +99,12 @@ export default function Inventario() {
         alertError("El correo es obligatorio");
         return;
       }
+
       await enviarPDFEmail(emailDestino, nitSeleccionado);
       setEmailModal(false);
       alertSuccess("Correo enviado");
-      setEmailDestino("")
+      setEmailDestino("");
+
     } catch (e) {
       alertError(e.message);
     }
@@ -115,6 +131,7 @@ export default function Inventario() {
         Inventario por Empresa
       </Typography>
 
+      {/* Dropdown para seleccionar empresa */}
       <Box mt={2}>
         <select
           className="form-select"
@@ -130,6 +147,7 @@ export default function Inventario() {
         </select>
       </Box>
 
+      {/* Tabla de inventario */}
       <Box mt={3} height={500}>
         <DataGrid
           rows={inventario}
@@ -139,6 +157,7 @@ export default function Inventario() {
         />
       </Box>
 
+      {/* Acciones para admin */}
       {isAdmin && nitSeleccionado && (
         <Box mt={3} display="flex" gap={2}>
           <Button variant="contained" onClick={handlePDF}>
@@ -151,6 +170,7 @@ export default function Inventario() {
         </Box>
       )}
 
+      {/* Modal enviar email */}
       <Dialog open={emailModal} onClose={() => setEmailModal(false)}>
         <DialogTitle>Enviar Inventario por Email</DialogTitle>
 

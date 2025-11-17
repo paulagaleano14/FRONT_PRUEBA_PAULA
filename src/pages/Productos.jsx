@@ -24,6 +24,7 @@ import {
   deleteProducto,
   editarProducto,
 } from "../services/productosApi";
+import {validarProducto} from "../js/utils/commons";
 
 import { useAuth } from "../context/AuthContext";
 import { ROLES } from "../js/const";
@@ -51,6 +52,13 @@ export default function Productos() {
     cargarProductos();
   }, []);
 
+  /**
+   * Carga los productos desde la API y los inserta en la tabla.
+   * - Obtiene la lista mediante getProductos()
+   * - Asegura que cada producto tenga un ID válido (fallback a crypto.randomUUID)
+   * - Actualiza el estado local con el listado formateado
+   * - Si ocurre un error, notifica al usuario mediante Snackbar
+  */
   const cargarProductos = async () => {
     try {
       const data = await getProductos();
@@ -64,6 +72,12 @@ export default function Productos() {
     }
   };
 
+  /**
+   * Abre el modal para crear un nuevo producto.
+   * - Limpia el formulario
+   * - Desactiva el modo edición
+   * - Abre el dialog
+  */
   const abrirCrear = () => {
     setForm({
       id: null,
@@ -77,6 +91,13 @@ export default function Productos() {
     setOpen(true);
   };
 
+  /**
+   * Abre el modal en modo edición.
+   * @param {Object} row - Fila seleccionada del DataGrid
+   * - Llena el formulario con la información del producto
+   * - Activa el modo edición
+   * - Abre el modal
+  */
   const abrirEditar = (row) => {
     setIsEditing(true);
     setForm({
@@ -94,8 +115,23 @@ export default function Productos() {
     setOpen(true);
   };
 
+  /**
+   * Valida el formulario y crea o edita un producto.
+   * - Utiliza validarProducto() para validar campos
+   * - Construye el payload con precios numéricos
+   * - Si isEditing = true → actualiza
+   * - Si isEditing = false → crea
+   * - Muestra snackbar de éxito o error
+   * - Recarga el listado de productos
+  */
   const crearEditarProducto = async () => {
     try {
+      const error = validarProducto(form);
+      if (error) {
+        setSnack({ open: true, msg: error, type: "error" });
+        return;
+      }
+
       const payload = {
         codigo: form.codigo,
         nombre: form.nombre,
@@ -115,7 +151,6 @@ export default function Productos() {
         await crearProducto(payload);
         setSnack({ open: true, msg: "Producto creado", type: "success" });
       }
-
       setOpen(false);
       cargarProductos();
     } catch (err) {
@@ -123,10 +158,21 @@ export default function Productos() {
     }
   };
 
+  /**
+   * Cierra el diálogo de creación/edición de producto.
+  */
   const cerrarModal = () => {
     setOpen(false);
   };
 
+  /**
+   * Elimina un producto después de confirmación.
+   * @param {number|string} id - ID del producto a eliminar
+   * - Solicita confirmación mediante alertConfirm()
+   * - Realiza la eliminación mediante deleteProducto()
+   * - Muestra mensaje de éxito o error
+   * - Recarga el listado de productos
+  */
   const eliminarProducto = async (id) => {
     const confirmado = await alertConfirm("¿Seguro que deseas eliminar este producto?");
     if (!confirmado) return;

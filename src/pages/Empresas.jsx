@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo } from "react";
-import { getEmpresas, deleteEmpresa, editarEmpresa, crearEmpresa } from "../services/api";
+import { getEmpresas, deleteEmpresa, editarEmpresa, crearEmpresa } from "../services/empresasApi";
 import { useAuth } from "../context/AuthContext";
 
 import {
@@ -38,41 +38,78 @@ export default function Empresas() {
     cargarEmpresas();
   }, []);
 
+  /**
+   * Obtiene todas las empresas desde la API y las asigna al DataGrid.
+   * Cada empresa se marca con un ID = NIT para que DataGrid no falle.
+   */
   const cargarEmpresas = async () => {
     try {
       const data = await getEmpresas();
-      setEmpresas(data.map(emp => ({ id: emp.nit, ...emp })));
+      setEmpresas(data.map((emp) => ({ id: emp.nit, ...emp })));
     } catch {
       setSnack({ open: true, msg: "Error cargando empresas", type: "error" });
     }
   };
 
+  /**
+   * Abre el modal de creación de empresa.
+   * Reinicia los campos del formulario.
+   */
   const abrirCrear = () => {
     setForm({ nit: "", nombre: "", direccion: "", telefono: "" });
     setIsEditing(false);
     setOpen(true);
   };
 
+  /**
+   * Abre el modal en modo edición y carga los datos de la empresa seleccionada.
+   * @param {object} emp - Empresa seleccionada
+   */
   const abrirEditar = (emp) => {
     setForm(emp);
     setIsEditing(true);
     setOpen(true);
   };
 
+  /** Cierra el modal */
   const cerrarModal = () => setOpen(false);
 
+
+  /**
+   * Valida el formulario y ejecuta la creación o edición de la empresa.
+   * Contempla:
+   *  - Campos obligatorios
+   *  - Campos numéricos (NIT, teléfono)
+   *  - Longitud máxima de texto
+   */
   const crearEditarEmpresa = async () => {
     try {
-      // VALIDACIÓN DE CAMPOS OBLIGATORIOS
+      // Validaciones básicas
       if (!form.nit || !form.nombre || !form.direccion || !form.telefono) {
+        setSnack({ open: true, msg: "Todos los campos son obligatorios", type: "error" });
+        return;
+      }
+
+      if (!/^\d+$/.test(form.nit)) {
+        setSnack({ open: true, msg: "El NIT debe ser numérico", type: "error" });
+        return;
+      }
+
+      if (!/^\d+$/.test(form.telefono)) {
+        setSnack({ open: true, msg: "El teléfono debe ser numérico", type: "error" });
+        return;
+      }
+
+      if (form.nombre.length > 50 || form.direccion.length > 50) {
         setSnack({
           open: true,
-          msg: "Todos los campos son obligatorios",
+          msg: "Los campos de texto aceptan máximo 50 caracteres",
           type: "error",
         });
         return;
       }
 
+      // Llamada API según modo
       if (isEditing) {
         await editarEmpresa(form.nit, form);
         setSnack({ open: true, msg: "Empresa actualizada", type: "success" });
@@ -89,6 +126,10 @@ export default function Empresas() {
     }
   };
 
+  /**
+   * Elimina una empresa después de confirmar la acción con el usuario.
+   * @param {string} nit - NIT de la empresa a eliminar
+   */
   const eliminarEmpresa = async (nit) => {
     if (!(await alertConfirm("¿Seguro que deseas eliminar esta empresa?"))) return;
 
@@ -101,6 +142,11 @@ export default function Empresas() {
     }
   };
 
+  /**
+   * Columnas del DataGrid.
+   * Se memorizan con useMemo para evitar renders innecesarios.
+   * Incluye acciones (editar/eliminar) solo para administradores.
+   */
   const columns = useMemo(() => {
     const baseColumns = [
       { field: "nit", headerName: "NIT", flex: 1 },
@@ -131,6 +177,25 @@ export default function Empresas() {
 
     return baseColumns;
   }, [isAdmin]);
+
+  /**
+   * Maneja los cambios del formulario con validación inmediata.
+   * @param {string} key - nombre del campo
+   * @param {string} value - nuevo valor
+   */
+  const handleChange = (key, value) => {
+    // Campos numéricos
+    if (["nit", "telefono"].includes(key)) {
+      if (!/^\d*$/.test(value)) return;
+    }
+
+    // Máximo de caracteres
+    if (["nombre", "direccion"].includes(key)) {
+      if (value.length > 50) return;
+    }
+
+    setForm({ ...form, [key]: value });
+  };
 
   return (
     <Box sx={{ p: 4 }}>
@@ -173,8 +238,16 @@ export default function Empresas() {
               key={key}
               label={key.charAt(0).toUpperCase() + key.slice(1)}
               value={form[key]}
-              disabled={isEditing && key === "nit"}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              onChange={(e) => handleChange(key, e.target.value)}
+              error={
+                (["nit", "telefono"].includes(key) && form[key] && !/^\d+$/.test(form[key])) ||
+                (["nombre", "direccion"].includes(key) && form[key].length > 50)
+              }
+              helperText={
+                ["nit", "telefono"].includes(key)
+                  ? "Solo números"
+                  : "Máximo 50 caracteres"
+              }
             />
           ))}
         </DialogContent>
