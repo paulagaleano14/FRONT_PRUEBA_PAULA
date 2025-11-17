@@ -194,6 +194,9 @@ export default function Empresas() {
         </DialogActions>
       </Dialog>
 
+      {/* ============================================================
+          ALERTAS
+      ============================================================ */}
       <Snackbar
         open={snack.open}
         autoHideDuration={3000}
