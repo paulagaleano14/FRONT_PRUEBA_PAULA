@@ -3,6 +3,7 @@ import Login from './pages/Login';
 import Empresas from './pages/Empresas';
 import Productos from './pages/Productos';
 import Inventario from './pages/Inventario';
+import Forbbiden from './pages/Forbbiden';
 import ProtectedRoute from './components/ProtectedRoute';
 import { ROLES } from './js/const';
 import Navbar from './components/Navbar';
@@ -31,6 +32,8 @@ function App() {
             <Inventario />
           </ProtectedRoute>
         }/>
+
+        <Route path="/forbidden" element={<Forbbiden />} />
 
       </Routes>
     </>

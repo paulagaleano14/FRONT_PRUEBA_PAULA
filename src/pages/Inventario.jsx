@@ -80,9 +80,15 @@ export default function Inventario() {
 
   const enviarEmail = async () => {
     try {
+      if (!emailDestino || emailDestino.trim() === "") {
+        setEmailModal(false);
+        alertError("El correo es obligatorio");
+        return;
+      }
       await enviarPDFEmail(emailDestino, nitSeleccionado);
       setEmailModal(false);
       alertSuccess("Correo enviado");
+      setEmailDestino("")
     } catch (e) {
       alertError(e.message);
     }
