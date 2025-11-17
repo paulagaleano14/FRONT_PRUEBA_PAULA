@@ -134,7 +134,7 @@ export default function Empresas() {
 
   return (
     <Box sx={{ p: 4 }}>
-      <Typography variant="h4" fontWeight={700} mb={3}>
+      <Typography variant="h2" fontWeight={700} mb={3}>
         Listado de Empresas
       </Typography>
 
