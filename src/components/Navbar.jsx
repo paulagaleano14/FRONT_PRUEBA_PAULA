@@ -23,6 +23,10 @@ export default function Navbar() {
               Productos
             </Button>
 
+            <Button color="inherit" component={Link} to="/inventario">
+                Inventario
+            </Button>
+
             <Button color="inherit" onClick={logout}>
               Cerrar Sesión
             </Button>
