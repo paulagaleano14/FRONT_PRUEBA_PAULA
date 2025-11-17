@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:8080/api/inventario";
+import { URL } from "../js/const";
+
+const API_URL = URL + "/api/inventario";
 
 export async function getInventarioPorEmpresa(nit) {
   const token = localStorage.getItem("token");

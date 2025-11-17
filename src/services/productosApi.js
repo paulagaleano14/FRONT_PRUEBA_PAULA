@@ -1,4 +1,6 @@
-const API_URL = "http://localhost:8080/api";
+import { URL } from "../js/const";
+
+const API_URL = URL + "/api";
 
 export async function crearProducto(data) {
   const token = localStorage.getItem("token");
